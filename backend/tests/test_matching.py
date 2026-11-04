@@ -183,3 +183,24 @@ def test_eval_script_zero_wrong():
     s = evaluate()["summary"]
     assert s["wrong"] == 0 and s["band_violations"] == 0
     assert s["recall"] >= 0.9
+
+
+def test_email_hint_reference_identifies_payer(customers, invoices):
+    from app.services.matching.engine import PaymentHint
+
+    hint = PaymentHint("C002", ["N123456789"], ["INV-1004"], date(2026, 10, 24), "We paid INV-1004, ref N123456789")
+    engine = MatchingEngine(customers, invoices, [hint])
+    # Narration names nobody; only the reference links it to Kestrel's email.
+    r = engine.match(Txn(date(2026, 10, 25), "NEFT CR 0099 SBIN", to_minor(59000), "INR", reference="N123456789"))
+    assert r.status == "suggested" and r.allocations[0].invoice_number == "INV-1004"
+    assert "quoted this payment reference" in r.reason and r.signals["email_hint"]["matched"] == "reference"
+
+
+def test_email_hint_breaks_equal_amount_tie(customers, invoices):
+    from app.services.matching.engine import PaymentHint
+
+    hint = PaymentHint("C002", [], ["INV-1005"], date(2026, 10, 24), "We paid INV-1005")
+    engine = MatchingEngine(customers, invoices, [hint])
+    r = engine.match(Txn(date(2026, 10, 25), "NEFT CR-KESTREL FOODS", to_minor(59000), "INR"))
+    assert r.allocations[0].invoice_number == "INV-1005" and "says INV-1005 was paid" in r.reason
+    assert "ambiguous" not in r.reason

@@ -106,6 +106,11 @@ function Row({ t, s, openInvoices, onChanged, onOpenInvoice }: {
             </div>
           ) : <span className="text-slate-500">No match</span>}
         {s?.reason && <div className="mt-1 text-xs text-slate-600">{s.reason}</div>}
+        {s?.signals?.email_hint && (
+          <div className="mt-1 rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs text-violet-900">
+            <span className="font-medium">Customer email{s.signals.email_hint.said_on ? ` (${fmtDate(s.signals.email_hint.said_on)})` : ""}:</span> “{s.signals.email_hint.excerpt}”
+          </div>
+        )}
       </td>
       <td className="px-3 py-2">{s && t.direction === "credit" && t.status !== "duplicate" && (<div className="flex flex-col items-start gap-1"><span className="num text-base font-semibold">{s.score}</span><Badge tone={bandTone(s.band)}>{s.band === "none" ? "no match" : s.band}</Badge></div>)}</td>
       <td className="px-3 py-2">{s && t.direction === "credit" && t.status !== "duplicate" && <Review t={t} s={s} openInvoices={openInvoices} onChanged={onChanged} />}</td>

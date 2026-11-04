@@ -337,3 +337,17 @@ async def test_errors_do_not_leak(env):
     assert r.status_code == 404 and "Traceback" not in r.text
     r = await env["client"].get("/api/health")
     assert r.headers["x-content-type-options"] == "nosniff"
+
+
+async def test_claims_paid_email_links_to_statement_row(env):
+    c = env["client"]
+    env["llm"].responses = [verdict("claims_paid", draft="Thanks")]
+    env["inbox"].add(make_email(KESTREL, "Paid", "Hi, we paid INV-1005 yesterday, UTR ref N298260004455."))
+    await c.post("/api/collections/check-inbox")
+    data = (b"txn_date,narration,reference,credit,debit,currency\n"
+            b"2026-11-04,NEFT CR-KSTRL FD,N298260004455,59000,,INR\n")
+    r = await c.post("/api/reconciliation/statements", files={"file": ("s.csv", data, "text/csv")})
+    detail = (await c.get(f"/api/reconciliation/statements/{r.json()['id']}")).json()
+    sug = detail["rows"][0]["suggestion"]
+    assert sug["allocations"][0]["invoice_number"] == "INV-1005"
+    assert "customer email" in sug["reason"]

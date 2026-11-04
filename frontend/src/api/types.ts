@@ -134,6 +134,7 @@ export interface Suggestion {
   amount_kind: string | null;
   alternatives: { invoice_numbers: string[]; score: number; reason: string; kind: string }[];
   payer: { customer_id: string; name: string; score: number } | null;
+  signals?: { email_hint?: { customer_id: string; said_on: string; excerpt: string; matched: string } };
   applied?: { invoice_number: string; amount_minor: number; tds_minor: number; new_status: string }[];
   approved_by?: string;
   close_with_tds?: boolean;

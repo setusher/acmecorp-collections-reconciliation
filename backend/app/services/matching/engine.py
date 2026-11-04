@@ -79,6 +79,22 @@ class Txn:
 
 
 @dataclass
+class PaymentHint:
+    """A customer's "we have paid" email, used as extra evidence (never as proof)."""
+
+    customer_id: str
+    references: list[str]  # compact uppercase payment references quoted in the email
+    invoice_numbers: list[str]
+    said_on: date | None = None
+    excerpt: str = ""
+
+
+HINT_REF_POINTS = 20
+HINT_INVOICE_POINTS = 10
+HINT_WINDOW_DAYS = 15
+
+
+@dataclass
 class Allocation:
     invoice_number: str
     customer_id: str
@@ -116,6 +132,10 @@ class MatchResult:
     signals: dict = field(default_factory=dict)
 
 
+def _on(d: date | None) -> str:
+    return f" of {d.isoformat()}" if d else ""
+
+
 def _compact(text: str) -> str:
     return "".join(ch for ch in text.upper() if ch.isalnum())
 
@@ -128,7 +148,8 @@ def _po_in(po: str | None, f: NarrationFeatures) -> bool:
 
 
 class MatchingEngine:
-    def __init__(self, customers: list[Customer], invoices: list[Invoice]):
+    def __init__(self, customers: list[Customer], invoices: list[Invoice], hints: list[PaymentHint] | None = None):
+        self.hints = hints or []
         self.customers = {c.customer_id: c for c in customers}
         self.invoices = invoices
         self.by_numeric: dict[int, Invoice] = {}
@@ -239,6 +260,25 @@ class MatchingEngine:
                                          sort_key=(max(i.due_date for i in combo), size)))
         return out
 
+    # ---------------------------------------------------------------- hints
+    def _apply_hints(self, txn: Txn, cands: list[Candidate], ref_hint: PaymentHint | None, signals: dict) -> None:
+        for c in cands:
+            if ref_hint and c.customer_id == ref_hint.customer_id:
+                c.raw += HINT_REF_POINTS
+                c.reasons.append(f"customer email{_on(ref_hint.said_on)} quoted this payment reference")
+            labels = {a.invoice_number for a in c.allocations}
+            for h in self.hints:
+                if h.customer_id != c.customer_id or not (labels & set(h.invoice_numbers)):
+                    continue
+                if h.said_on and abs((txn.txn_date - h.said_on).days) > HINT_WINDOW_DAYS:
+                    continue
+                c.raw += HINT_INVOICE_POINTS
+                c.reasons.append(f"customer email{_on(h.said_on)} says {', '.join(sorted(labels & set(h.invoice_numbers)))}"
+                                 " was paid")
+                signals.setdefault("email_hint", {"customer_id": h.customer_id, "said_on": str(h.said_on or ""),
+                                                  "excerpt": h.excerpt[:200], "matched": "invoice"})
+                break
+
     # --------------------------------------------------------------------- main
     def match(self, txn: Txn) -> MatchResult:
         if txn.direction != "credit":
@@ -257,6 +297,17 @@ class MatchingEngine:
                 for s in score_list[:3]
             ],
         }
+        # Customer emails ("we paid INV-1004, ref N123...") as extra evidence.
+        compact_ref = _compact(txn.reference)
+        compact_narr = _compact(f.upper)
+        ref_hint = next((h for h in self.hints for r in h.references
+                         if len(r) >= 6 and (r == compact_ref or r in compact_narr)), None)
+        if ref_hint and payer is None and ref_hint.customer_id in self.customers:
+            c = self.customers[ref_hint.customer_id]
+            payer = PayerScore(c.customer_id, c.name, 0.9, True, {}, "payment reference from customer email")
+        if ref_hint:
+            signals["email_hint"] = {"customer_id": ref_hint.customer_id, "said_on": str(ref_hint.said_on or ""),
+                                     "excerpt": ref_hint.excerpt[:200], "matched": "reference"}
         payer_info = {"customer_id": payer.customer_id, "name": payer.name, "score": payer.score} if payer else None
 
         named = [self.by_numeric[n] for n in f.invoice_numbers if n in self.by_numeric]
@@ -299,6 +350,7 @@ class MatchingEngine:
         ]
         if payer:
             cands += self._group_candidates(txn, f, payer)
+        self._apply_hints(txn, cands, ref_hint, signals)
 
         if not cands:
             why = notes or [

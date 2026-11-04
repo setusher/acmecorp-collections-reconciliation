@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import asdict
 
 from app.core import clock
@@ -9,7 +10,7 @@ from app.core.money import format_amount, tds_minor
 from app.repositories import Repos
 from app.repositories.db import new_id
 from app.services.csv_parser import StatementParseError, decode_upload, parse_statement
-from app.services.matching.engine import MatchingEngine, Txn
+from app.services.matching.engine import MatchingEngine, PaymentHint, Txn
 
 TDS_TOLERANCE_MINOR = 100  # ₹1 rounding tolerance when the customer rounds the TDS amount
 ALLOWED_EXTENSIONS = (".csv",)
@@ -53,7 +54,7 @@ async def upload_statement(repos: Repos, filename: str, content_type: str, data:
 
     customers = await repos.master.list_customers()
     invoices = await repos.master.list_invoices()
-    engine = MatchingEngine(customers, invoices)
+    engine = MatchingEngine(customers, invoices, await payment_hints(repos))
     sid = new_id()
     fps = [fingerprint(r) for r in rows]
     already = await repos.recon.existing_fingerprints(fps)
@@ -100,6 +101,39 @@ async def upload_statement(repos: Repos, filename: str, content_type: str, data:
     await repos.audit.log(actor, "statement_uploaded", f"statement:{sid}",
                           {"filename": stmt["filename"], "rows": len(rows), "suggested": stmt["suggested_count"]})
     return stmt
+
+
+_REF_TOKEN = re.compile(r"\b[A-Z0-9][A-Z0-9/-]{5,24}\b")
+_INV_TOKEN = re.compile(r"\bINV[\s\-/#:.]*0*(\d{3,6})\b", re.IGNORECASE)
+
+
+def extract_hint(customer_id: str, text: str, said_on) -> PaymentHint | None:
+    upper = text.upper()
+    invoices = sorted({f"INV-{n}" for n in _INV_TOKEN.findall(upper)})
+    without_inv = _INV_TOKEN.sub(" ", upper)
+    refs = []
+    for tok in _REF_TOKEN.findall(without_inv):
+        compact = re.sub(r"[^A-Z0-9]", "", tok)
+        if len(compact) >= 6 and sum(ch.isdigit() for ch in compact) >= 4:
+            refs.append(compact)
+    if not invoices and not refs:
+        return None
+    return PaymentHint(customer_id, refs, invoices, said_on, " ".join(text.split())[:300])
+
+
+async def payment_hints(repos: Repos) -> list[PaymentHint]:
+    """Collect "we have paid" claims from customer emails (category claims_paid)."""
+    hints = []
+    async for m in repos.db.messages.find({"direction": "in", "category": "claims_paid"}):
+        conv = await repos.collections.get_conversation(m["conversation_id"])
+        if not conv or not conv.get("customer_id"):
+            continue
+        received = m.get("received_at") or m.get("created_at")
+        h = extract_hint(conv["customer_id"], m.get("clean_text") or m.get("body_text", ""),
+                         received.date() if received else None)
+        if h:
+            hints.append(h)
+    return hints
 
 
 async def statement_detail(repos: Repos, sid: str) -> dict | None:
