@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     max_statement_rows: int = 5000
 
     seed_customer_emails: str = ""
+    enable_dev_endpoints: bool = False
+    # Mail transport for outgoing email: "smtp" (default) or "log" (dry run: store but do not send)
+    mail_transport: str = "smtp"
 
     data_dir: Path = Field(default=DATA_DIR)
 

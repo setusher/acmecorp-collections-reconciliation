@@ -39,10 +39,10 @@ class ReconciliationRepo:
     async def get_transaction(self, tid: str) -> dict | None:
         return await self.db.bank_transactions.find_one({"_id": tid})
 
-    async def claim_transaction(self, tid: str) -> dict | None:
+    async def claim_transaction_any(self, tid: str) -> dict | None:
         """Atomically move a transaction to 'applying' so it can never be applied twice."""
         return await self.db.bank_transactions.find_one_and_update(
-            {"_id": tid, "status": {"$in": ["suggested", "unmatched"]}},
+            {"_id": tid, "status": {"$in": ["suggested", "unmatched", "rejected"]}},
             {"$set": {"status": "applying", "updated_at": clock.now()}}, return_document=ReturnDocument.AFTER,
         )
 

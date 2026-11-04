@@ -5,10 +5,10 @@ import email
 import html
 import re
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from email import policy
 from email.message import EmailMessage
 from email.utils import getaddresses, parseaddr, parsedate_to_datetime
-from datetime import datetime, timezone
 
 MAX_BODY_CHARS = 20000
 
@@ -76,7 +76,7 @@ def parse_email(raw: bytes) -> InboundEmail:
         from_name=name.strip(),
         to_addrs=[a.lower() for _, a in getaddresses([str(v) for v in msg.get_all("To", [])])],
         subject=" ".join(str(msg.get("Subject", "")).split())[:300],
-        date=dt.astimezone(timezone.utc) if dt and dt.tzinfo else dt,
+        date=dt.astimezone(UTC) if dt and dt.tzinfo else dt,
         body_text=_body(msg),
         in_reply_to=(_ids(str(msg.get("In-Reply-To", ""))) or [None])[0],
         references=_ids(str(msg.get("References", ""))),

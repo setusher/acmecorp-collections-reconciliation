@@ -72,7 +72,7 @@ def parse_amount(text: str) -> int | None:
     if not raw or raw in {"-", "--"}:
         return None
     cleaned = _AMOUNT_CLEAN.sub("", raw)
-    if cleaned.startswith("(") or cleaned.startswith("-"):
+    if cleaned.startswith(("(", "-")):
         raise ValueError(f"negative amount {raw!r}")
     if not _AMOUNT_OK.match(cleaned):
         raise ValueError(f"invalid amount {raw!r}")
@@ -126,7 +126,8 @@ def parse_statement(text: str, max_rows: int = 5000) -> list[ParsedRow]:
                 continue  # blank line
             if len(rec) < len(header):
                 rec = rec + [""] * (len(header) - len(rec))
-            get = lambda c: rec[idx[c]].strip()  # noqa: E731
+            def get(c: str, rec: list[str] = rec) -> str:
+                return rec[idx[c]].strip()
             try:
                 txn_date = parse_date(get("txn_date"))
                 narration = " ".join(get("narration").split())

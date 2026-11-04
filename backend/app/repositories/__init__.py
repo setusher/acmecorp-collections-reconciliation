@@ -19,5 +19,5 @@ class Repos:
     audit: AuditRepo
 
     @classmethod
-    def from_db(cls, db: AsyncIOMotorDatabase) -> "Repos":
+    def from_db(cls, db: AsyncIOMotorDatabase) -> Repos:
         return cls(db, MasterDataRepo(db), CollectionsRepo(db), ReconciliationRepo(db), AuditRepo(db))

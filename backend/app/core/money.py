@@ -8,7 +8,7 @@ SUPPORTED_CURRENCIES = frozenset(CURRENCY_SYMBOLS)
 MINOR_DIGITS = 2  # all four supported currencies use 2 decimal places
 
 
-def to_minor(value: int | float | str | Decimal) -> int:
+def to_minor(value: float | str | Decimal) -> int:
     """Convert a major-unit amount (e.g. 7350.5) to integer minor units (735050).
 
     Floats are converted through ``str`` so 7350.5 does not pick up binary noise.
@@ -21,7 +21,7 @@ def to_minor(value: int | float | str | Decimal) -> int:
         raise ValueError(f"invalid amount: {value!r}") from exc
     if not dec.is_finite():
         raise ValueError(f"invalid amount: {value!r}")
-    return int((dec * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int((dec * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 def to_major(minor: int) -> Decimal:
@@ -59,4 +59,4 @@ def format_amount(minor: int, currency: str, symbol: bool = True) -> str:
 
 def tds_minor(subtotal_minor: int, rate_percent: int = 10) -> int:
     """TDS = rate% of the invoice subtotal (policy: 10% of subtotal for Indian customers)."""
-    return int((Decimal(subtotal_minor) * rate_percent / 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int((Decimal(subtotal_minor) * rate_percent / 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))

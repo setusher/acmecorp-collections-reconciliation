@@ -1,6 +1,6 @@
+from datetime import UTC, datetime
 from email.message import EmailMessage
 from email.utils import format_datetime, make_msgid
-from datetime import datetime, timezone
 
 
 def make_email(from_addr: str, subject: str, body: str, to: str = "org@test.local", in_reply_to: str | None = None,
@@ -9,7 +9,7 @@ def make_email(from_addr: str, subject: str, body: str, to: str = "org@test.loca
     m["From"] = from_addr
     m["To"] = to
     m["Subject"] = subject
-    m["Date"] = format_datetime(datetime(2026, 11, 5, 10, 0, tzinfo=timezone.utc))
+    m["Date"] = format_datetime(datetime(2026, 11, 5, 10, 0, tzinfo=UTC))
     m["Message-ID"] = make_msgid(domain="customer.test")
     if in_reply_to:
         m["In-Reply-To"] = in_reply_to

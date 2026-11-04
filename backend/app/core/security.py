@@ -23,7 +23,8 @@ def normalize_email(value: str) -> str:
     if not isinstance(value, str) or _HEADER_UNSAFE.search(value) or len(value) > 254:
         raise InputError("invalid email address")
     try:
-        return validate_email(value.strip(), check_deliverability=False).normalized.lower()
+        return validate_email(value.strip(), check_deliverability=False, test_environment=True,
+                              globally_deliverable=False).normalized.lower()
     except EmailNotValidError as exc:
         raise InputError("invalid email address") from exc
 

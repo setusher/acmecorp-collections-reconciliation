@@ -28,3 +28,7 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 110
 target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "I"]
+ignore = ["B008", "E501"]  # B008: FastAPI's Depends()/File() defaults are idiomatic

@@ -2,7 +2,13 @@ from datetime import date
 
 import pytest
 
-from app.services.csv_parser import StatementParseError, decode_upload, parse_amount, parse_date, parse_statement
+from app.services.csv_parser import (
+    StatementParseError,
+    decode_upload,
+    parse_amount,
+    parse_date,
+    parse_statement,
+)
 
 HEADER = "txn_date,narration,reference,credit,debit,currency\n"
 

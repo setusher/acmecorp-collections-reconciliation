@@ -7,7 +7,7 @@ date plausibility in matching) calls :func:`today`. Setting ``APP_AS_OF_DATE``
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 
 def today() -> date:
@@ -23,4 +23,4 @@ def today() -> date:
 
 def now() -> datetime:
     """Current UTC timestamp (used for audit trails; not affected by APP_AS_OF_DATE)."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)

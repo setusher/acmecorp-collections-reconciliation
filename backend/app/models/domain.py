@@ -84,7 +84,7 @@ class Invoice(BaseModel):
     notes: list[InvoiceNote] = Field(default_factory=list)
 
     @classmethod
-    def from_source(cls, raw: dict) -> "Invoice":
+    def from_source(cls, raw: dict) -> Invoice:
         """Build from an ``invoices.json`` record (major units -> minor units)."""
         return cls(
             invoice_number=raw["invoice_number"],

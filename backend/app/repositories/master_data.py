@@ -80,17 +80,26 @@ class MasterDataRepo:
     async def apply_settlement(self, number: str, cash_minor: int, tds_minor: int) -> Invoice | None:
         """Atomically reduce the balance. Fails (returns None) if the invoice is not open or would be over-paid."""
         total = cash_minor + tds_minor
-        doc = await self.db.invoices.find_one_and_update(
+        # The guard lives in the filter, so the check-and-decrement is a single atomic operation.
+        res = await self.db.invoices.update_one(
             {"invoice_number": number, "status": "sent", "balance_minor": {"$gte": total}},
             {"$inc": {"amount_paid_minor": cash_minor, "tds_minor": tds_minor, "balance_minor": -total}},
-            projection=_NO_ID, return_document=ReturnDocument.AFTER,
         )
-        if doc and doc["balance_minor"] == 0:
-            doc = await self.db.invoices.find_one_and_update(
-                {"invoice_number": number, "balance_minor": 0}, {"$set": {"status": "paid"}},
-                projection=_NO_ID, return_document=ReturnDocument.AFTER,
-            )
+        if res.modified_count != 1:
+            return None
+        await self.db.invoices.update_one({"invoice_number": number, "balance_minor": 0, "status": "sent"},
+                                          {"$set": {"status": "paid"}})
+        doc = await self.db.invoices.find_one({"invoice_number": number}, _NO_ID)
         return Invoice(**doc) if doc else None
+
+    async def revert_settlement(self, number: str, cash_minor: int, tds_minor: int) -> None:
+        """Compensating update used only if a multi-invoice approval fails half-way."""
+        total = cash_minor + tds_minor
+        await self.db.invoices.update_one(
+            {"invoice_number": number},
+            {"$inc": {"amount_paid_minor": -cash_minor, "tds_minor": -tds_minor, "balance_minor": total},
+             "$set": {"status": "sent"}},
+        )
 
     async def add_invoice_note(self, number: str, note: dict) -> None:
         await self.db.invoices.update_one({"invoice_number": number}, {"$push": {"notes": note}})

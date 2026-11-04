@@ -32,7 +32,7 @@ from app.core.money import format_amount
 from app.models.domain import Customer, Invoice
 from app.services.matching.normalize import NarrationFeatures, extract_features, invoice_numeric
 from app.services.matching.payer import PayerMatcher, PayerScore
-from app.services.matching.signals import AMOUNT_POINTS, amount_signal, date_signal, tds_expected
+from app.services.matching.signals import amount_signal, date_signal, tds_expected
 
 PAYER_POINTS = 45
 WEAK_PAYER_POINTS = 10
@@ -359,7 +359,7 @@ class MatchingEngine:
         """Match a statement; flag receipts that compete for the same invoice balance."""
         results = [self.match(t) for t in txns]
         claimed: dict[str, int] = {}
-        for idx, res in enumerate(results):
+        for res in results:
             if res.status != "suggested":
                 continue
             for a in res.allocations:

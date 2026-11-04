@@ -114,8 +114,8 @@ def validate_draft(text: str, facts: AllowedFacts) -> ValidationResult:
     # Mask things that are not amounts (phone numbers, account numbers, dates) before amount scanning.
     masked = text
     for pd in facts.phone_digits:
-        masked = re.sub(r"\+?\d[\d\s]{6,}\d", lambda mm: " " if re.sub(r"\D", "", mm.group(0)) == pd else mm.group(0),
-                        masked)
+        masked = re.sub(r"\+?\d[\d\s]{6,}\d",
+                        lambda mm, pd=pd: " " if re.sub(r"\D", "", mm.group(0)) == pd else mm.group(0), masked)
     for pattern, _ in _DATE_PATTERNS:
         masked = pattern.sub(" ", masked)
 
