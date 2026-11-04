@@ -13,11 +13,12 @@ export default function Collections() {
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<React.ReactNode>(null);
   const [refresh, setRefresh] = useState(0);
+  const [force, setForce] = useState(false);
 
   const sendReminders = async () => {
     setBusy("rem"); setError(null); setSummary(null);
     try {
-      const r = await api.post<ReminderResult>("/collections/send-reminders");
+      const r = await api.post<ReminderResult>("/collections/send-reminders", { force });
       setSummary(<div>
         <div className="font-medium">Reminders: {r.sent.length} sent, {r.skipped.length} skipped</div>
         <ul className="mt-1 list-disc pl-5">
@@ -41,6 +42,9 @@ export default function Collections() {
     <div>
       <PageHeader title="Collections" subtitle="Reminders go out once per customer per interval; replies are answered automatically only when routine and validated"
         actions={<>
+          <label className="flex items-center gap-1 text-xs text-slate-600" title="Send now even if this customer was reminded within REMINDER_INTERVAL_DAYS (audit-logged)">
+            <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} /> Ignore reminder interval
+          </label>
           <Button variant="primary" busy={busy === "rem"} onClick={sendReminders}>Send reminders</Button>
           <Button busy={busy === "inbox"} onClick={checkInbox}>Check inbox now</Button>
         </>} />

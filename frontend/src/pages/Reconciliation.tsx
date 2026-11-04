@@ -94,7 +94,7 @@ function Row({ t, s, openInvoices, onChanged, onOpenInvoice }: {
       <td className={`num px-3 py-2 text-right whitespace-nowrap ${t.direction === "credit" ? "font-medium text-emerald-700" : ""}`}>{t.direction === "debit" ? "-" : "+"}{t.amount_display}</td>
       <td className="px-3 py-2">
         {t.direction === "debit" ? <span className="text-xs">Debit: not reconciled</span>
-          : t.status === "duplicate" ? <Badge tone="amber">Duplicate of an earlier upload</Badge>
+          : t.status === "duplicate" ? <div><Badge tone="amber">Duplicate</Badge><div className="mt-1 text-xs text-slate-600">Already imported: {t.duplicate_of ?? "same row seen in an earlier upload"}. Not suggested again.</div></div>
           : s && s.allocations.length > 0 ? (
             <div className="space-y-0.5">
               {s.allocations.map((a) => (

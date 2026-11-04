@@ -151,6 +151,7 @@ export interface Transaction {
   direction: "credit" | "debit";
   currency: Currency;
   status: "suggested" | "unmatched" | "ignored" | "duplicate" | "approved" | "rejected" | "applying";
+  duplicate_of?: string | null;
 }
 
 export interface Statement {

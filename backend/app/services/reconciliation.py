@@ -57,19 +57,33 @@ async def upload_statement(repos: Repos, filename: str, content_type: str, data:
     engine = MatchingEngine(customers, invoices, await payment_hints(repos))
     sid = new_id()
     fps = [fingerprint(r) for r in rows]
-    already = await repos.recon.existing_fingerprints(fps)
-    seen_in_file: set[str] = set()
+    already = await repos.recon.existing_by_fingerprint(fps)
+    stmt_names: dict[str, dict] = {}
+    for orig in already.values():
+        if orig["statement_id"] not in stmt_names:
+            prev = await repos.recon.get_statement(orig["statement_id"])
+            stmt_names[orig["statement_id"]] = prev or {}
+    seen_in_file: dict[str, int] = {}
     to_match = []
     tx_docs, now = [], clock.now()
     for r, fp in zip(rows, fps, strict=True):
         duplicate = fp in already or fp in seen_in_file
-        seen_in_file.add(fp)
+        duplicate_of = None
+        if fp in already:
+            orig = already[fp]
+            prev = stmt_names.get(orig["statement_id"], {})
+            up = prev.get("uploaded_at")
+            duplicate_of = (f"identical to line {orig['row_no']} of {prev.get('filename', 'an earlier statement')}"
+                            + (f" (uploaded {up.date().isoformat()})" if up else ""))
+        elif fp in seen_in_file:
+            duplicate_of = f"identical to line {seen_in_file[fp]} of this file"
+        seen_in_file.setdefault(fp, r.row_no)
         tid = new_id()
         status = "ignored" if r.direction == "debit" else ("duplicate" if duplicate else "pending")
         tx_docs.append({
             "_id": tid, "statement_id": sid, "row_no": r.row_no, "txn_date": r.txn_date.isoformat(),
             "narration": r.narration, "reference": r.reference, "amount_minor": r.amount_minor,
-            "direction": r.direction, "currency": r.currency, "status": status,
+            "direction": r.direction, "currency": r.currency, "status": status, "duplicate_of": duplicate_of,
             # duplicates keep a unique fingerprint so the index holds; the original row stays authoritative
             "fingerprint": fp if not duplicate else f"{fp}:dup:{tid}", "created_at": now,
         })

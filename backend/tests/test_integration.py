@@ -355,3 +355,14 @@ async def test_claims_paid_email_links_to_statement_row(env):
     sug = detail["rows"][0]["suggestion"]
     assert sug["allocations"][0]["invoice_number"] == "INV-1005"
     assert "customer email" in sug["reason"]
+
+
+async def test_overlapping_statement_rows_flagged_with_origin(env):
+    c = env["client"]
+    await upload_sample(c)
+    data = (DATA / "bank_statement_sample.csv").read_bytes() + b"2026-11-02,NEFT CR-ORBIS PACKAGING,X1,472000,,INR\n"
+    r = await c.post("/api/reconciliation/statements", files={"file": ("second.csv", data, "text/csv")})
+    detail = (await c.get(f"/api/reconciliation/statements/{r.json()['id']}")).json()
+    dup = row_for(detail, "KESTREL")["transaction"]
+    assert dup["status"] == "duplicate" and "identical to line 2 of statement.csv" in dup["duplicate_of"]
+    assert row_for(detail, "NEFT CR-ORBIS PACKAGING")["suggestion"]["match_status"] == "suggested"

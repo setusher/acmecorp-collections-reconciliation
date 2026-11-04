@@ -25,9 +25,11 @@ class ReconciliationRepo:
     async def get_statement(self, sid: str) -> dict | None:
         return await self.db.bank_statements.find_one({"_id": sid})
 
-    async def existing_fingerprints(self, fps: list[str]) -> set[str]:
-        return {d["fingerprint"] async for d in self.db.bank_transactions.find({"fingerprint": {"$in": fps}},
-                                                                                {"fingerprint": 1})}
+    async def existing_by_fingerprint(self, fps: list[str]) -> dict[str, dict]:
+        """fingerprint -> {statement_id, row_no} of the original (non-duplicate) row."""
+        cur = self.db.bank_transactions.find({"fingerprint": {"$in": fps}},
+                                             {"fingerprint": 1, "statement_id": 1, "row_no": 1})
+        return {d["fingerprint"]: d async for d in cur}
 
     async def insert_transactions(self, docs: list[dict]) -> None:
         if docs:
