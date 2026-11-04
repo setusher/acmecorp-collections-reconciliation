@@ -195,7 +195,7 @@ class MatchingEngine:
         if amt.kind in ("partial", "partial_declared", "instalment"):
             raw = min(raw, PARTIAL_CAP)
         if payer is None and not (explicit or po_hit):
-            if amt.kind not in ("balance", "tds", "instalment"):
+            if amt.kind not in ("balance", "tds"):
                 return None  # unknown payer + inexact amount is noise, not a lead
             raw = min(raw, AMOUNT_ONLY_CAP)
             reasons.append("payer not recognised")

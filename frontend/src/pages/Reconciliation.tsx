@@ -90,7 +90,7 @@ function Row({ t, s, openInvoices, onChanged, onOpenInvoice }: {
   return (
     <tr className={t.direction === "debit" ? "bg-slate-50/50 text-slate-400" : ""}>
       <td className="px-3 py-2 whitespace-nowrap">{fmtDate(t.txn_date)}</td>
-      <td className="px-3 py-2"><div className="font-mono text-xs break-all text-slate-800">{t.narration}</div>{t.reference && <div className="font-mono text-xs text-slate-400">ref {t.reference}</div>}</td>
+      <td className="px-3 py-2"><div className="font-mono text-xs break-words text-slate-800">{t.narration}</div>{t.reference && <div className="font-mono text-xs text-slate-400">ref {t.reference}</div>}</td>
       <td className={`num px-3 py-2 text-right whitespace-nowrap ${t.direction === "credit" ? "font-medium text-emerald-700" : ""}`}>{t.direction === "debit" ? "-" : "+"}{t.amount_display}</td>
       <td className="px-3 py-2">
         {t.direction === "debit" ? <span className="text-xs">Debit: not reconciled</span>
