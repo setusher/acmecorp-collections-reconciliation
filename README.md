@@ -23,7 +23,7 @@ docker-compose.yml   MongoDB (+ optional local test mail server)
 ### Prerequisites
 - **Docker** (for MongoDB; optionally a local test mail server)
 - **Python 3.11+**. The commands below use [`uv`](https://docs.astral.sh/uv/); plain `python -m venv` + `pip` also works.
-- **Node.js 20+** and npm
+- **Node.js 20.19+ or 22.12+** (required by Vite 8) and npm
 
 ### Steps
 ```bash
@@ -43,7 +43,7 @@ uv pip install -p .venv/bin/python -e ".[dev]"    # or: python -m venv .venv && 
 .venv/bin/python -m scripts.seed                  # loads data/*.json (safe to re-run)
 .venv/bin/uvicorn app.main:app --port 8000        # API on http://localhost:8000, docs at /docs
 
-# 4. Frontend (second terminal)
+# 4. Frontend (second terminal, from the repo root)
 cd frontend
 npm install
 npm run dev                                       # UI on http://localhost:5173 (proxies /api to :8000)
@@ -55,7 +55,7 @@ If the app runs on a remote machine, forward both ports: `ssh -L 5173:localhost:
 ### Run the tests and the matching evaluation
 ```bash
 cd backend
-.venv/bin/pytest -q                       # 147 tests. No network: fake LLM, fake SMTP/IMAP, in-memory Mongo
+.venv/bin/pytest -q                       # 150 tests. No network: fake LLM, fake SMTP/IMAP, in-memory Mongo
 .venv/bin/python -m scripts.eval_matching -v
 ```
 
@@ -137,7 +137,7 @@ To swap provider, change these environment variables; the wrapper lives in `back
 | TDS | Quillon row (₹3,24,000 against INV-1007, ₹3,54,000): *Close invoice (TDS deducted: ₹30,000)* is pre-selected. Approve it and INV-1007 becomes `paid` (cash ₹3,24,000 + TDS ₹30,000) |
 | Partial payment | Orbis row (₹2,00,000 against ₹4,72,000): *Leave balance open*. The TDS option is disabled because the shortfall is not 10% of the subtotal |
 | One payment, several invoices | Saffron Peak row (₹1,94,700 = INV-1010 + 1011 + 1012). Approval splits the receipt across all three |
-| Paid -> no more chasing | Approve the Redwood row, then **Send reminders** (after the interval, or after **Reset demo data**). INV-1016 is no longer listed |
+| Paid -> no more chasing | Approve the Redwood row, then tick **Ignore reminder interval** and click **Send reminders** (or set `REMINDER_INTERVAL_DAYS=0`). INV-1016 is no longer listed; INV-1017 still is |
 | Reset demo data | Sidebar → **Reset demo data**, then type `RESET` |
 | Audit log | **Audit log** page: approvals, rejections, emails sent, customer edits, resets |
 
@@ -163,7 +163,7 @@ Errors always have the shape `{"error": {"code": "...", "message": "...", "detai
 | `PATCH /customers/{id}` | Change contact email (validated, lowercased, unique) and/or payer aliases | `{"contact_email"?: str, "aliases"?: [str]}` | updated customer |
 | `GET /invoices` | List invoices. Filters: `status=draft\|sent\|paid`, `customer_id=C00x`, `overdue=true\|false` | – | `[{invoice_number,status,currency,*_minor,overdue,days_overdue,display:{total,balance,...}}]` |
 | `GET /invoices/{number}` | Invoice detail with line items, notes and approved payments | – | invoice + `line_items`, `notes`, `payments` |
-| `POST /collections/send-reminders` | Send due reminders now (6/min) | `{}` | `{"sent":[{customer,to,invoices,reminder_number}],"skipped":[{customer,reason}]}` |
+| `POST /collections/send-reminders` | Send due reminders now (6/min). `force` ignores the interval for this manual run only (audit-logged); placeholder addresses and Needs-attention conversations are still skipped | `{"force"?: bool}` | `{"sent":[{customer,to,invoices,reminder_number}],"skipped":[{customer,reason}]}` |
 | `POST /collections/check-inbox` | Poll IMAP now (6/min) | `{}` | `{"fetched", "results":[{message_id,status,category,reason?}]}` |
 | `GET /conversations` | Conversations. Filters: `status=open\|needs_attention\|resolved`, `customer_id` | – | `[{id,customer_name,status,subject,message_count,last_message,...}]` |
 | `GET /conversations/{id}` | Thread with every message (direction, kind, category, auto_sent, reason) and notes | – | conversation + `messages[]` |

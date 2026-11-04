@@ -31,7 +31,8 @@
 
 ### 2:25–2:35 · Paid stops chasing
 *Screen: Invoices filtered to Redwood; optionally show the audit log.*
-> "INV-1016 is paid, so the next reminder run won't mention it. Every approval, email and reset is in the audit log."
+*Tick "Ignore reminder interval" → Send reminders → show Redwood's new email.*
+> "INV-1016 is paid, so this reminder only lists INV-1017. Every approval, email and reset is in the audit log."
 
 ### 2:35–2:50 · What I'd improve
 > "Next I would add maker-checker approvals, learn payer aliases from approved matches, run it against more real bank formats, and use an LLM only to explain low-confidence rows, never to decide. The tests cover all of this with a fake LLM and fake mail, and the matching eval scores 37 out of 37 with zero wrong matches."
