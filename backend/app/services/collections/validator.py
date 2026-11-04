@@ -59,11 +59,13 @@ class ValidationResult:
 
 
 def allowed_facts(customer: Customer, open_invoices: list[Invoice], org: Organization,
-                  all_customers: list[Customer]) -> AllowedFacts:
+                  all_customers: list[Customer], today: date | None = None) -> AllowedFacts:
     amounts = {i.balance_minor for i in open_invoices}
     if open_invoices:
         amounts.add(sum(i.balance_minor for i in open_invoices))
     dates = {i.due_date for i in open_invoices} | {i.invoice_date for i in open_invoices}
+    if today:
+        dates.add(today)  # "as of 5 Nov 2026" is harmless and models like to write it
     nums = set()
     for i in open_invoices:
         m = re.search(r"(\d+)$", i.invoice_number)

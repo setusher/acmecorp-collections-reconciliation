@@ -20,7 +20,9 @@ def within_working_hours(now: datetime) -> bool:
 
 
 async def send_reminders(repos: Repos, mailer: Mailer, settings: Settings, actor: str,
-                         scheduled: bool = False) -> dict:
+                         scheduled: bool = False, force: bool = False) -> dict:
+    """``force`` bypasses only the reminder interval (manual runs); placeholder addresses and
+    conversations waiting in Needs attention are still skipped."""
     org = await repos.master.get_organization()
     if org is None:
         raise RuntimeError("organization not seeded")
@@ -43,7 +45,7 @@ async def send_reminders(repos: Repos, mailer: Mailer, settings: Settings, actor
             skipped.append({**base, "reason": "conversation is waiting in Needs attention"})
             continue
         last = conv.get("last_reminder_at") if conv else None
-        if isinstance(last, datetime):
+        if isinstance(last, datetime) and not (force and not scheduled):
             if last.tzinfo is None:
                 last = last.replace(tzinfo=UTC)
             next_due = last + timedelta(days=settings.reminder_interval_days)
@@ -75,6 +77,6 @@ async def send_reminders(repos: Repos, mailer: Mailer, settings: Settings, actor
             "status": "open"})
         await repos.audit.log(actor, "reminder_sent", f"customer:{customer.customer_id}",
                               {"to": customer.contact_email, "invoices": base["invoices"], "message_id": mid,
-                               "reminder_number": count})
+                               "reminder_number": count, "interval_overridden": force})
         sent.append({**base, "to": customer.contact_email, "reminder_number": count})
     return {"sent": sent, "skipped": skipped}

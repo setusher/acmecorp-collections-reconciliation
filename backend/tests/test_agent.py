@@ -157,3 +157,9 @@ async def test_bounce_flagged(make_ctx):
     d = await decide(make_ctx("C002", "550 user unknown", subject="Undeliverable: Payment reminder",
                               sender="mailer-daemon@googlemail.com"), FakeLLM([]))
     assert d.category == "auto_reply" and d.action == "needs_attention" and "bounce" in d.reason.lower()
+
+
+async def test_live_style_draft_mentioning_today_is_sent(make_ctx):
+    draft = "Dear Arjun,\n\nAs of 5 November 2026, these are your outstanding invoices:\n\n{{FACTS}}"
+    d = await decide(make_ctx("C002", ARJUN), FakeLLM([verdict("balance_or_invoice_query", draft=draft)]))
+    assert d.action == "auto_send", d.reason

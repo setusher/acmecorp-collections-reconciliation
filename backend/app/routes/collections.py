@@ -14,10 +14,15 @@ from app.services.collections.reminders import send_reminders
 router = APIRouter(prefix="/api", tags=["collections"], dependencies=[Depends(require_user)])
 
 
+class SendRemindersIn(BaseModel):
+    force: bool = False  # ignore REMINDER_INTERVAL_DAYS for this manual run (audit-logged)
+
+
 @router.post("/collections/send-reminders", dependencies=[rate_limit("reminders", 6, 60)])
-async def post_send_reminders(request: Request, r: Repos = Depends(repos), user: str = Depends(require_user)):
+async def post_send_reminders(request: Request, body: SendRemindersIn | None = None, r: Repos = Depends(repos),
+                              user: str = Depends(require_user)):
     st = request.app.state
-    return await send_reminders(r, st.mailer, st.settings, user)
+    return await send_reminders(r, st.mailer, st.settings, user, force=bool(body and body.force))
 
 
 async def run_inbox(state) -> dict:

@@ -96,6 +96,9 @@ async def test_reminders_once_per_customer_with_balances(env):
     assert not again["sent"] and any("next reminder after" in s["reason"] for s in again["skipped"])
     audit = (await c.get("/api/audit-log")).json()
     assert sum(1 for a in audit if a["action"] == "reminder_sent") == 2
+    forced = (await c.post("/api/collections/send-reminders", json={"force": True})).json()
+    assert {s["customer_id"] for s in forced["sent"]} == {"C002", "C006"}
+    assert forced["sent"][0]["reminder_number"] == 2
 
 
 async def test_full_reply_flow_threads_and_auto_answers(env):
@@ -238,9 +241,10 @@ async def test_approve_flow_balance_to_zero_stops_chasing(env):
     # double-apply guarded
     again = await c.post(f"/api/reconciliation/suggestions/{sug['id']}/approve", json={})
     assert again.status_code == 409
-    # reminders no longer mention INV-1016
+    # reminders no longer mention INV-1016 (force: a reminder may already have gone out this week)
     await c.post("/api/collections/send-reminders")
-    redwood_mail = next(m for m in env["mailer"].sent if m["To"] == REDWOOD).get_content()
+    await c.post("/api/collections/send-reminders", json={"force": True})
+    redwood_mail = [m for m in env["mailer"].sent if m["To"] == REDWOOD][-1].get_content()
     assert "INV-1016" not in redwood_mail and "INV-1017" in redwood_mail
     audit = (await c.get("/api/audit-log")).json()
     assert any(a["action"] == "payment_approved" for a in audit)

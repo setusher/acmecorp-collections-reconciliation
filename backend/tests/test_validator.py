@@ -73,3 +73,12 @@ def test_reminder_uses_balance_not_total(customers, invoices, organization):
     assert "$4,000.00" in body  # INV-1023 balance (total 6,000, 2,000 paid)
     assert "$6,000.00" not in body
     assert "INV-1023" in body and "INV-1021" in body and "INV-1022" in body
+
+
+def test_today_is_allowed_only_when_passed(customers, invoices, organization):
+    cust = next(c for c in customers if c.customer_id == "C002")
+    open_inv = [i for i in invoices if i.customer_id == "C002" and i.is_open()]
+    with_today = allowed_facts(cust, open_inv, organization, customers, date(2026, 11, 5))
+    for text in ["As of 5 November 2026 your balance is below.", "As of 2026-11-05:"]:
+        assert validate_draft(text, with_today).ok
+        assert not validate_draft(text, allowed_facts(cust, open_inv, organization, customers)).ok

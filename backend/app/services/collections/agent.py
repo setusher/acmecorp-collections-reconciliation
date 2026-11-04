@@ -140,7 +140,7 @@ def _user_prompt(ctx: ReplyContext, feedback: str | None = None) -> str:
              f"<<<CUSTOMER_EMAIL>>>\nSubject: {subject}\n\n{body}\n<<<END_CUSTOMER_EMAIL>>>"]
     if feedback:
         parts.append(f"Your previous draft was rejected by the validator: {feedback}. "
-                     "Rewrite it without any figures; use {{FACTS}}.")
+                     "Rewrite it without any invoice numbers, amounts, dates or bank details; use {{FACTS}} instead.")
     return "\n\n".join(parts)
 
 
@@ -203,7 +203,7 @@ async def decide(ctx: ReplyContext, llm: LLMClient) -> Decision:
                         draft=T.holding_reply_body(ctx.customer, ctx.org))
 
     flags = rule_flags(ctx)
-    facts = allowed_facts(ctx.customer, ctx.open_invoices, ctx.org, ctx.all_customers)
+    facts = allowed_facts(ctx.customer, ctx.open_invoices, ctx.org, ctx.all_customers, ctx.today)
     facts_text = T.facts_block(ctx.customer, ctx.open_invoices, ctx.org, ctx.today)
 
     feedback: str | None = None
