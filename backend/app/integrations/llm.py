@@ -49,10 +49,15 @@ def _extract_json(text: str) -> dict:
 class _HTTPClient:
     name = "base"
 
-    def __init__(self, api_key: str, models: list[str], timeout: float):
+    def __init__(self, api_key: str, models: list[str], timeout: float,
+                 transport: httpx.AsyncBaseTransport | None = None):
         self.api_key = api_key
         self.models = [m for m in models if m]
         self.timeout = timeout
+        self.transport = transport  # injectable for tests
+
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(timeout=self.timeout, transport=self.transport)
 
     async def _call(self, model: str, system: str, user: str) -> str:  # pragma: no cover - network
         raise NotImplementedError
@@ -77,13 +82,13 @@ class GeminiClient(_HTTPClient):
     name = "gemini"
     URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
-    async def _call(self, model: str, system: str, user: str) -> str:  # pragma: no cover - network
+    async def _call(self, model: str, system: str, user: str) -> str:
         body = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
         }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with self._client() as client:
             r = await client.post(self.URL.format(model=model), json=body, headers={"x-goog-api-key": self.api_key})
             r.raise_for_status()
             return r.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -92,18 +97,19 @@ class GeminiClient(_HTTPClient):
 class OpenAICompatibleClient(_HTTPClient):
     name = "openai_compatible"
 
-    def __init__(self, api_key: str, models: list[str], timeout: float, base_url: str):
-        super().__init__(api_key, models, timeout)
+    def __init__(self, api_key: str, models: list[str], timeout: float, base_url: str,
+                 transport: httpx.AsyncBaseTransport | None = None):
+        super().__init__(api_key, models, timeout, transport)
         self.base_url = base_url.rstrip("/")
 
-    async def _call(self, model: str, system: str, user: str) -> str:  # pragma: no cover - network
+    async def _call(self, model: str, system: str, user: str) -> str:
         body = {
             "model": model,
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with self._client() as client:
             r = await client.post(f"{self.base_url}/chat/completions", json=body,
                                   headers={"Authorization": f"Bearer {self.api_key}"})
             r.raise_for_status()
@@ -140,7 +146,7 @@ def build_llm(settings: Settings) -> LLMClient:
     provider = (settings.llm_provider or "none").lower()
     models = [settings.llm_model, settings.llm_fallback_model]
     if provider == "gemini":
-        return GeminiClient(settings.llm_api_key, models or ["gemini-2.5-flash"], settings.llm_timeout_seconds)
+        return GeminiClient(settings.llm_api_key, models, settings.llm_timeout_seconds)
     if provider == "groq":
         return OpenAICompatibleClient(settings.llm_api_key, models, settings.llm_timeout_seconds,
                                       settings.llm_base_url or "https://api.groq.com/openai/v1")
